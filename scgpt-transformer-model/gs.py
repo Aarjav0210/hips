@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
 """
 Transformer-based Model for Alzheimer's Disease Prediction
-Cell-level scGPT embeddings → Donor-level predictions
-With grid search hyperparameter tuning + 3-fold CV + final test evaluation
+Cell-level scGPT embeddings -> Donor-level predictions
+With grid search hyperparameter tuning and final test evaluation
 """
 
 import torch
@@ -18,9 +17,7 @@ from sklearn.model_selection import KFold
 import json
 from itertools import product
 
-# ============================================================
-# SET SEED FOR REPRODUCIBILITY
-# ============================================================
+
 
 SEED = 42
 random.seed(SEED)
@@ -31,12 +28,13 @@ if torch.cuda.is_available():
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-# ============================================================
-# LOAD DATA
-# ============================================================
 
-print("Loading data...")
-df = pd.read_csv('/users/aiyer51/scratch/cell_level_scgpt.csv')
+print("loading data")
+DATA_DIR = "./data"
+
+file_name = "cell_level_scgpt.csv"
+file_path = os.path.join(DATA_DIR, file_name)
+df = pd.read_csv(file_path)
 print(f"Loaded {len(df)} cells from {df['Donor ID'].nunique()} donors")
 print(f"Data shape: {df.shape}")
 
@@ -44,10 +42,7 @@ print(f"Data shape: {df.shape}")
 scgpt_cols = [col for col in df.columns if col.startswith('scGPT_')]
 print(f"Found {len(scgpt_cols)} scGPT embedding dimensions")
 
-# ============================================================
 # DATA PREPROCESSING
-# ============================================================
-
 print("\nPreprocessing data...")
 
 # 1. Ordinal label mappings
@@ -123,21 +118,19 @@ y1_cols = ['percent 6e10 positive area', 'percent AT8 positive area',
            'percent NeuN positive area', 'percent GFAP positive area']
 y2_cols = ['Thal', 'Braak', 'CERAD', 'ADNC']
 
-# Scale regression targets based on train_df
+# scale regression targets based on train_df
 print("\nScaling regression targets...")
 y1_scaler = StandardScaler()
 train_df[y1_cols] = y1_scaler.fit_transform(train_df[y1_cols].values)
 val_df[y1_cols] = y1_scaler.transform(val_df[y1_cols].values)
 test_df[y1_cols] = y1_scaler.transform(test_df[y1_cols].values)
 
-# Put scaled values back into master df for later folds (train+val don’t include test donors in CV)
+# put scaled values back into master df for later folds (train+val don’t include test donors in CV)
 df.loc[train_df.index, y1_cols] = train_df[y1_cols]
 df.loc[val_df.index,   y1_cols] = val_df[y1_cols]
 df.loc[test_df.index,  y1_cols] = test_df[y1_cols]
 
-# ============================================================
 # DATASET CLASS
-# ============================================================
 
 class CellLevelDataset(torch.utils.data.Dataset):
     """Dataset that works at cell level"""
@@ -159,7 +152,6 @@ class CellLevelDataset(torch.utils.data.Dataset):
                 self.cell_types[i] if self.cell_types is not None else '')
 
 def collate_with_donors(batch):
-    """Custom collate function"""
     X_batch = torch.stack([item[0] for item in batch])
     y1_batch = torch.stack([item[1] for item in batch])
     y2_batch = torch.stack([item[2] for item in batch])
@@ -167,21 +159,18 @@ def collate_with_donors(batch):
     cell_types = [item[4] for item in batch]
     return X_batch, y1_batch, y2_batch, donor_ids, cell_types
 
-# Create datasets
+# create datasets
 train_ds = CellLevelDataset(train_df, scgpt_cols, y1_cols, y2_cols)
 val_ds   = CellLevelDataset(val_df,   scgpt_cols, y1_cols, y2_cols)
 test_ds  = CellLevelDataset(test_df,  scgpt_cols, y1_cols, y2_cols)
 
-# Create dataloaders
 train_dl = DataLoader(train_ds, batch_size=128, shuffle=True,  collate_fn=collate_with_donors)
 val_dl   = DataLoader(val_ds,   batch_size=128, shuffle=False, collate_fn=collate_with_donors)
 test_dl  = DataLoader(test_ds,  batch_size=128, shuffle=False, collate_fn=collate_with_donors)
 
 print(f"\nDataloaders created with batch_size=128")
 
-# ============================================================
 # LOSS FUNCTIONS
-# ============================================================
 
 def ccc_loss(pred: torch.Tensor, target: torch.Tensor, eps: float = 1e-12) -> torch.Tensor:
     """Concordance Correlation Coefficient loss"""
@@ -205,15 +194,11 @@ def ccc_np(y_true, y_pred, eps=1e-12):
     cov = ((y_true - mt) * (y_pred - mp)).mean()
     return (2*cov) / (vt + vp + (mt - mp)**2 + eps)
 
-# ============================================================
 # MODEL DEFINITION
-# ============================================================
-
 class TransformerNet(nn.Module):
     def __init__(self, embed_dim=512, hidden=256, n_heads=4, n_layers=2, dropout=0.4):
         super().__init__()
 
-        # Transformer encoder
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=embed_dim,
             nhead=n_heads,
@@ -224,7 +209,7 @@ class TransformerNet(nn.Module):
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
 
-        # Attention pooling mechanism
+        # attention pooling mechanism
         self.attention_pool = nn.Sequential(
             nn.Linear(embed_dim, hidden),
             nn.Tanh(),
@@ -288,9 +273,7 @@ class TransformerNet(nn.Module):
 
         return thal_out, braak_out, cerad_out, adnc_out, reg_out, donor_ids_out
 
-# ============================================================
 # MODEL / OPTIMIZER BUILDERS & TRAINING FUNCTION
-# ============================================================
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(f"\nUsing device: {device}")
@@ -372,7 +355,7 @@ def train_one_config(model, opt, sched, train_dl, val_dl, num_epochs=30, verbose
             running_loss += total_loss.item()
             n_batches += 1
 
-        # Validation
+        # validation
         model.eval()
         val_loss = 0.0
         val_batches = 0
@@ -418,9 +401,7 @@ def train_one_config(model, opt, sched, train_dl, val_dl, num_epochs=30, verbose
 
     return best_val_loss
 
-# ============================================================
 # GRID SEARCH OVER HYPERPARAMETERS (USING TRAIN/VAL SPLIT)
-# ============================================================
 
 param_grid = {
     "hidden":       [256],
@@ -453,7 +434,7 @@ for cfg in generate_configs(param_grid):
         num_epochs=NUM_EPOCHS,
         verbose=False
     )
-    print(f"  → Val loss: {val_loss:.4f}")
+    print(f"Val loss: {val_loss:.4f}")
 
     if val_loss < best_val_loss:
         best_val_loss = val_loss
