@@ -15,8 +15,8 @@ import math
 # --------------------------------------------------
 # Load donor-by-class latent vectors (long format)
 # --------------------------------------------------
-DATA_DIR = "../data"
-df = pd.read_csv(os.path.join(DATA_DIR, "donor_clusters_global.csv"))
+DATA_DIR = "./data"
+df = pd.read_csv(os.path.join(DATA_DIR, "donor_clusters_k3_aggregated.csv"))
 
 # ============================================================
 # SET SEED FOR REPRODUCIBILITY
@@ -34,14 +34,14 @@ if torch.cuda.is_available():
 # ============================================================
 # TRAIN/VAL/TEST SPLIT (stratified by cluster)
 # ============================================================
-df["sample_id"] = df["donor"] + "_" + df["region"]
+df["sample_id"] = df["donor"]
 
 print("\nSplitting data by donor, stratified by cluster...")
 
 TRAIN_SPLIT, VAL_SPLIT, TEST_SPLIT = 0.7, 0.15, 0.15
 
-DONOR_COL = "donor"       
-CLUSTER_COL = "global_cluster"
+DONOR_COL = "donor"
+CLUSTER_COL = "cluster"
 
 train_ids = []
 val_ids = []
@@ -56,7 +56,6 @@ for cl, cl_df in df.groupby(CLUSTER_COL):
     n_train = math.floor(TRAIN_SPLIT * n)
     remaining = n - n_train
 
-    # Because cluster 1 only has 5 ssamples
     n_val = max(1, math.floor(VAL_SPLIT * n))
 
     # Ensure we leave AT LEAST 1 for test
@@ -100,6 +99,6 @@ print(df[df.split=="val"][CLUSTER_COL].value_counts().sort_index())
 print("\n=== Cluster counts in Test ===")
 print(df[df.split=="test"][CLUSTER_COL].value_counts().sort_index())
 
-out_path = os.path.join(DATA_DIR, "donor_clusters_global_splits.csv")
+out_path = os.path.join(DATA_DIR, "donor_clusters_aggregated_splits.csv")
 df.to_csv(out_path, index=False)
-print("\nSaved: donor_clusters_global_splits.csv")
+print("\nSaved: donor_clusters_aggregated_splits.csv")
