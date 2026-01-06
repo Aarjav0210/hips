@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Transformer-based Model for Alzheimer's Disease Prediction
 Input: Sequence of Cell Embeddings (scGPT) -> Output: Pathology Staging and Quantification
@@ -307,7 +306,7 @@ class TransformerNet(nn.Module):
         attn_weights = torch.softmax(attn_scores, dim=1) # [Batch, Seq, 1]
         
         # Step 3: Aggregate to Donor Vector
-        # Sum(Features * Weights). Padding has 0 weight.
+        # Sum(Features * Weights). Padding has 0 weight
         donor_embedding = (h * attn_weights).sum(dim=1) # [Batch, 512]
         
         # Step 4: Predict
