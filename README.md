@@ -1,6 +1,6 @@
 # HIPS (Hierarchical Inference of Progression Stage)
 
-HIPS is a hierarchical transformer framework designed to infer Alzheimer’s disease pathology staging from single-nucleus transcriptomic data. It leverages the brain’s cellular hierarchy to identify molecular changes associated with disease progression.
+HIPS is a transformer framework designed to infer Alzheimer’s disease pathology staging and quantification from single-nucleus transcriptomic data. It leverages the brain’s genetic, cellular, and tissue-level hierarchy to identify molecular changes associated with disease progression. 
 
 ## Project Overview
 
