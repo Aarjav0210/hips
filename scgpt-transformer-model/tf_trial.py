@@ -171,7 +171,7 @@ val_ds = CellLevelDataset(val_df, scgpt_cols, y1_cols, y2_cols)
 test_ds = CellLevelDataset(test_df, scgpt_cols, y1_cols, y2_cols)
 
 # Create dataloaders
-#changed batch size from 256 to 128 #hyperparameter
+#changed batch size from 256 to 128
 train_dl = DataLoader(train_ds, batch_size=128, shuffle=True, collate_fn=collate_with_donors)
 val_dl = DataLoader(val_ds, batch_size=128, collate_fn=collate_with_donors)
 test_dl = DataLoader(test_ds, batch_size=128, collate_fn=collate_with_donors)
@@ -204,9 +204,6 @@ def ccc_np(y_true, y_pred, eps=1e-12):
     cov = ((y_true - mt) * (y_pred - mp)).mean()
     return (2*cov) / (vt + vp + (mt - mp)**2 + eps)
 
-# ============================================================
-# TRANSFORMER MODEL WITH ATTENTION POOLING
-# ============================================================
 
 class TransformerNet(nn.Module):
     def __init__(self, embed_dim=512, hidden=256, n_heads=4, n_layers=2, dropout=0.4):
@@ -271,7 +268,7 @@ class TransformerNet(nn.Module):
             donor_cells = cell_features[mask]  # [n_cells_for_donor, 512]
             
             # Attention-weighted pooling
-            donor_emb, _ = self.attention_weighted_pooling(donor_cells) 
+            donor_emb, _ = self.attention_weighted_pooling(donor_cells)
             
             donor_embeddings.append(donor_emb)
             donor_ids_out.append(donor)
